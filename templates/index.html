@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResearchMate AI — Research Paper RAG Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-badge">RM</div>
+                <div>
+                    <h2 class="logo-title">ResearchMate AI</h2>
+                    <p class="logo-subtitle">Research Paper RAG Assistant</p>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Upload Area -->
+                <div class="upload-section">
+                    <div class="sidebar-section-title">Upload Papers</div>
+                    <div class="upload-card" id="drop-zone" onclick="document.getElementById('pdf-input').click()">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-title">Choose or Drop PDF</div>
+                        <div class="upload-subtitle">Supports scientific research papers</div>
+                        <input type="file" id="pdf-input" class="file-input" accept=".pdf" multiple onchange="handleFileSelect(event)">
+                    </div>
+
+                    <div class="upload-progress" id="upload-progress">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">Processing document...</div>
+                    </div>
+                </div>
+
+                <!-- Documents List -->
+                <div class="documents-section">
+                    <div class="sidebar-section-title">
+                        <span>Indexed Papers</span>
+                        <span class="doc-count-badge" id="doc-count">0</span>
+                    </div>
+                    <ul class="doc-list" id="doc-list">
+                        <li class="empty-docs" id="empty-docs-msg">No papers indexed yet.<br>Upload a PDF to get started.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <button class="btn-secondary" onclick="clearChat()">
+                    <span>🗑️</span> Clear Conversation
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="chat-header">
+                <div class="header-title-group">
+                    <h1>Evidence-Based Research Assistant</h1>
+                    <p>Retrieval-Augmented Generation with Verified Citations & Page Numbers</p>
+                </div>
+                <div class="header-controls">
+                    <div class="status-pill" id="system-status">
+                        <span class="status-dot"></span>
+                        <span id="system-status-text">Ready</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Chat Messages Container -->
+            <div class="chat-body" id="chat-body">
+                <!-- Welcome Hero (shown when no messages yet) -->
+                <div class="welcome-hero" id="welcome-hero">
+                    <div class="welcome-icon">🔬</div>
+                    <h2>Welcome to ResearchMate AI</h2>
+                    <p>
+                        Upload any scientific research paper in PDF format to chat with its findings, inspect methodology, verify metrics, and generate structured executive summaries with exact page-level citations.
+                    </p>
+
+                    <div class="sample-queries-title">Sample Research Queries</div>
+                    <div class="sample-queries-grid">
+                        <button class="sample-query-btn" onclick="askSample(this)">
+                            "What is the primary contribution and novelty of this research?"
+                        </button>
+                        <button class="sample-query-btn" onclick="askSample(this)">
+                            "What datasets, baselines, and evaluation metrics were tested?"
+                        </button>
+                        <button class="sample-query-btn" onclick="askSample(this)">
+                            "What are the main limitations and future directions stated by the authors?"
+                        </button>
+                        <button class="sample-query-btn" onclick="askSample(this)">
+                            "Explain the core mathematical or algorithmic architecture proposed."
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages will be dynamically rendered here -->
+                <div id="messages-list"></div>
+
+                <!-- Loading / Typing Indicator -->
+                <div class="loading-row" id="loading-indicator">
+                    <div class="avatar avatar-ai">AI</div>
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <span style="font-size: 0.78rem; color: #64748b; margin-left: 8px;">Retrieving evidence & generating answer...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer / Input Form -->
+            <footer class="chat-footer">
+                <form id="chat-form" onsubmit="handleChatSubmit(event)">
+                    <div class="chat-input-wrapper">
+                        <textarea 
+                            id="question-input" 
+                            class="chat-input" 
+                            placeholder="Ask a technical or research question about your indexed papers..." 
+                            rows="1"
+                            onkeydown="handleKeyDown(event)"></textarea>
+                        <button type="submit" class="btn-send" id="btn-send" title="Send question">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+                <div class="footer-hint">
+                    Responses are grounded strictly in your uploaded PDF documents. Citations are verified against FAISS retrieved passages.
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Structured Paper Summary Modal -->
+    <div class="modal-overlay" id="summary-modal" onclick="closeSummaryModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 class="modal-title" id="summary-doc-title">Structured Research Summary</h3>
+                <button class="btn-modal-close" onclick="closeSummaryModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="summary-content">
+                <p>Loading summary...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript -->
+    <script>
+        // State variables
+        let isProcessing = false;
+        let uploadedDocs = [];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDocuments();
+            setupDragAndDrop();
+        });
+
+        // Setup Drag & Drop for PDFs
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('drop-zone');
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add('drag-over');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove('drag-over');
+                }, false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    uploadFiles(files);
+                }
+            }, false);
+        }
+
+        // Handle file selection from input
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files && files.length > 0) {
+                uploadFiles(files);
+            }
+        }
+
+        // Upload one or multiple files
+        async function uploadFiles(files) {
+            if (isProcessing) return;
+
+            const progressBar = document.getElementById('progress-bar');
+            const progressContainer = document.getElementById('upload-progress');
+            const progressText = document.getElementById('progress-text');
+
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '20%';
+            progressText.textContent = `Uploading ${files.length} paper(s)...`;
+            isProcessing = true;
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+
+            try {
+                progressBar.style.width = '50%';
+                progressText.textContent = 'Extracting text and chunking...';
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                progressBar.style.width = '85%';
+                progressText.textContent = 'Embedding chunks into FAISS vector store...';
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to upload document');
+                }
+
+                progressBar.style.width = '100%';
+                progressText.textContent = data.message || 'Indexed successfully!';
+                
+                await fetchDocuments();
+                
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 2000);
+
+            } catch (err) {
+                alert(`Upload Error: ${err.message}`);
+                progressContainer.style.display = 'none';
+                progressBar.style.width = '0%';
+            } finally {
+                isProcessing = false;
+                document.getElementById('pdf-input').value = '';
+            }
+        }
+
+        // Fetch documents from server
+        async function fetchDocuments() {
+            try {
+                const res = await fetch('/documents');
+                if (!res.ok) return;
+                const data = await res.json();
+                uploadedDocs = data.documents || [];
+                renderDocumentsList();
+            } catch (err) {
+                console.error('Error fetching documents:', err);
+            }
+        }
+
+        // Render documents in sidebar
+        function renderDocumentsList() {
+            const docList = document.getElementById('doc-list');
+            const docCount = document.getElementById('doc-count');
+            const emptyMsg = document.getElementById('empty-docs-msg');
+
+            docCount.textContent = uploadedDocs.length;
+
+            if (uploadedDocs.length === 0) {
+                docList.innerHTML = '<li class="empty-docs" id="empty-docs-msg">No papers indexed yet.<br>Upload a PDF to get started.</li>';
+                return;
+            }
+
+            docList.innerHTML = '';
+            uploadedDocs.forEach(doc => {
+                const li = document.createElement('li');
+                li.className = 'doc-item';
+                
+                const uploadDate = doc.upload_time ? new Date(doc.upload_time).toLocaleDateString() : '';
+
+                li.innerHTML = `
+                    <div class="doc-item-header">
+                        <span class="doc-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
+                    </div>
+                    <div class="doc-meta">
+                        <span>📄 ${doc.page_count} pages</span>
+                        <span>🧩 ${doc.chunk_count} chunks</span>
+                    </div>
+                    <div class="doc-actions">
+                        <button class="btn-doc-action" onclick="generateSummary('${escapeHtml(doc.id)}', '${escapeHtml(doc.filename)}')">
+                            📋 Summarize
+                        </button>
+                        <button class="btn-doc-action btn-doc-delete" onclick="deleteDocument('${escapeHtml(doc.id)}')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                `;
+                docList.appendChild(li);
+            });
+        }
+
+        // Delete a document
+        async function deleteDocument(docId) {
+            if (!confirm('Are you sure you want to remove this paper from the knowledge base?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/delete-document', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ document_id: docId })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to delete');
+                await fetchDocuments();
+            } catch (err) {
+                alert(`Delete failed: ${err.message}`);
+            }
+        }
+
+        // Handle Chat Form Submit
+        async function handleChatSubmit(event) {
+            event.preventDefault();
+            const input = document.getElementById('question-input');
+            const question = input.value.trim();
+            if (!question || isProcessing) return;
+
+            // Hide welcome hero on first message
+            const hero = document.getElementById('welcome-hero');
+            if (hero) hero.style.display = 'none';
+
+            // Add user message to UI
+            appendMessage('user', question);
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Show loading
+            const loading = document.getElementById('loading-indicator');
+            loading.style.display = 'flex';
+            scrollChatToBottom();
+
+            isProcessing = true;
+
+            try {
+                const res = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to generate answer.');
+                }
+
+                // Add AI response to UI
+                appendMessage('assistant', data.answer, data.sources);
+
+            } catch (err) {
+                appendMessage('assistant', `⚠️ **Error:** ${err.message}`);
+            } finally {
+                loading.style.display = 'none';
+                isProcessing = false;
+                scrollChatToBottom();
+            }
+        }
+
+        // Append message to UI
+        function appendMessage(sender, text, sources = null) {
+            const list = document.getElementById('messages-list');
+            const row = document.createElement('div');
+            row.className = `message-row ${sender}`;
+
+            const isUser = sender === 'user';
+            const avatar = isUser ? 'You' : 'AI';
+            const avatarClass = isUser ? 'avatar-user' : 'avatar-ai';
+
+            let sourcesHtml = '';
+            if (sources && sources.length > 0) {
+                const sourcesListId = `sources-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+                sourcesHtml = `
+                    <div class="sources-container">
+                        <button class="sources-toggle-btn" onclick="toggleSources('${sourcesListId}', this)">
+                            <span>▶</span> Verified Supporting Passages (${sources.length})
+                        </button>
+                        <div class="sources-list" id="${sourcesListId}" style="display: none;">
+                            ${sources.map((s, idx) => `
+                                <div class="source-card">
+                                    <div class="source-header">
+                                        <span>[Source ${idx + 1}] ${escapeHtml(s.document)}</span>
+                                        <span style="color: var(--primary-blue)">Page ${s.page}</span>
+                                    </div>
+                                    <div class="source-excerpt">"${escapeHtml(s.text)}"</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const formattedText = formatMarkdown(text);
+
+            if (isUser) {
+                row.innerHTML = `
+                    <div class="message-bubble">${formattedText}</div>
+                    <div class="avatar ${avatarClass}">${avatar}</div>
+                `;
+            } else {
+                row.innerHTML = `
+                    <div class="avatar ${avatarClass}">${avatar}</div>
+                    <div class="message-bubble">
+                        <div>${formattedText}</div>
+                        ${sourcesHtml}
+                    </div>
+                `;
+            }
+
+            list.appendChild(row);
+            scrollChatToBottom();
+        }
+
+        // Toggle sources list expansion
+        function toggleSources(id, btn) {
+            const elem = document.getElementById(id);
+            if (!elem) return;
+            const isHidden = elem.style.display === 'none';
+            elem.style.display = isHidden ? 'flex' : 'none';
+            btn.querySelector('span').textContent = isHidden ? '▼' : '▶';
+        }
+
+        // Clear chat
+        async function clearChat() {
+            try {
+                await fetch('/clear-chat', { method: 'POST' });
+                document.getElementById('messages-list').innerHTML = '';
+                const hero = document.getElementById('welcome-hero');
+                if (hero) hero.style.display = 'block';
+            } catch (err) {
+                console.error('Error clearing chat:', err);
+            }
+        }
+
+        // Quick sample query click
+        function askSample(btn) {
+            const query = btn.textContent.replace(/^"|"$/g, '').trim();
+            const input = document.getElementById('question-input');
+            input.value = query;
+            document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+
+        // Textarea auto-resize & Enter submit
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        }
+
+        function scrollChatToBottom() {
+            const body = document.getElementById('chat-body');
+            body.scrollTop = body.scrollHeight;
+        }
+
+        // Generate Structured Summary for a document
+        async function generateSummary(docId, filename) {
+            const modal = document.getElementById('summary-modal');
+            const title = document.getElementById('summary-doc-title');
+            const content = document.getElementById('summary-content');
+
+            title.textContent = `Structured Summary: ${filename}`;
+            content.innerHTML = '<div style="text-align: center; padding: 20px;">Analyzing paper and extracting sections with Groq...</div>';
+            modal.style.display = 'flex';
+
+            try {
+                const res = await fetch('/summarize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ document_id: docId })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to summarize paper');
+
+                if (typeof data.summary === 'object' && data.summary !== null) {
+                    let html = '';
+                    for (const [key, val] of Object.entries(data.summary)) {
+                        const heading = key.replace(/_/g, ' ').toUpperCase();
+                        html += `
+                            <div class="summary-section">
+                                <div class="summary-heading">${escapeHtml(heading)}</div>
+                                <div class="summary-content">${escapeHtml(val)}</div>
+                            </div>
+                        `;
+                    }
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="summary-content">${formatMarkdown(data.summary || 'No summary generated.')}</div>`;
+                }
+
+            } catch (err) {
+                content.innerHTML = `<div style="color: var(--accent-red)">Failed to generate summary: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function closeSummaryModal(event) {
+            if (!event || event.target.id === 'summary-modal' || event.target.classList.contains('btn-modal-close')) {
+                document.getElementById('summary-modal').style.display = 'none';
+            }
+        }
+
+        // Helper: Simple Markdown Formatter
+        function formatMarkdown(text) {
+            if (!text) return '';
+            let escaped = escapeHtml(text);
+
+            // Bold
+            escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Inline code
+            escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Bullet points
+            escaped = escaped.replace(/^[\s]*[-*]\s+(.*)$/gm, '<li>$1</li>');
+            escaped = escaped.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            // Linebreaks
+            escaped = escaped.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>');
+
+            return `<p>${escaped}</p>`;
+        }
+
+        // Helper: Escape HTML to avoid XSS
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return str;
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
