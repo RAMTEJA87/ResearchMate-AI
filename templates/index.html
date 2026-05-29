@@ -57,13 +57,25 @@
             </div>
         </aside>
 
+        <!-- Sidebar Overlay for Mobile -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
         <!-- Main Workspace -->
         <main class="main-content">
             <!-- Header -->
             <header class="chat-header">
-                <div class="header-title-group">
-                    <h1>Evidence-Based Research Assistant</h1>
-                    <p>Retrieval-Augmented Generation with Verified Citations & Page Numbers</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="mobile-toggle-btn" id="mobile-toggle-btn" onclick="toggleSidebar()" title="Toggle Document Library">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="header-title-group">
+                        <h1>Evidence-Based Research Assistant</h1>
+                        <p>Retrieval-Augmented Generation with Verified Citations & Page Numbers</p>
+                    </div>
                 </div>
                 <div class="header-controls">
                     <div class="status-pill" id="system-status">
@@ -158,6 +170,16 @@
         // State variables
         let isProcessing = false;
         let uploadedDocs = [];
+
+        // Toggle mobile sidebar drawer
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const isOpen = sidebar.classList.toggle('open');
+            if (overlay) {
+                overlay.classList.toggle('active', isOpen);
+            }
+        }
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {

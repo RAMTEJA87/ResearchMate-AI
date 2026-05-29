@@ -822,18 +822,124 @@ body {
     color: var(--text-primary);
 }
 
-/* Responsive adjustments */
+/* Mobile Toggle Button */
+.mobile-toggle-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 6px;
+    cursor: pointer;
+    color: var(--text-primary);
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-toggle-btn:hover {
+    background: var(--bg-subtle);
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 25;
+    backdrop-filter: blur(2px);
+}
+
+/* Responsive Mobile Layout */
 @media (max-width: 768px) {
+    .mobile-toggle-btn {
+        display: flex;
+    }
+
     .app-container {
-        flex-direction: column;
+        flex-direction: row;
+        position: relative;
     }
+
     .sidebar {
-        width: 100%;
-        min-width: 100%;
-        height: auto;
-        max-height: 40vh;
+        position: fixed;
+        top: 0;
+        left: -320px;
+        width: 300px;
+        min-width: 300px;
+        height: 100vh;
+        z-index: 30;
+        box-shadow: var(--shadow-lg);
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
+    .chat-header {
+        padding: 0 14px;
+        height: 56px;
+        min-height: 56px;
+    }
+
+    .header-title-group h1 {
+        font-size: 0.92rem;
+    }
+
+    .header-title-group p {
+        display: none;
+    }
+
+    .status-pill {
+        font-size: 0.68rem;
+        padding: 3px 8px;
+    }
+
     .chat-body {
-        padding: 16px;
+        padding: 14px 12px;
+        gap: 14px;
+    }
+
+    .welcome-hero {
+        padding: 24px 16px;
+        margin: 12px auto;
+    }
+
+    .welcome-hero h2 {
+        font-size: 1.15rem;
+    }
+
+    .welcome-hero p {
+        font-size: 0.82rem;
+    }
+
+    .sample-queries-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .message-row {
+        gap: 8px;
+    }
+
+    .message-bubble {
+        max-width: 90%;
+        font-size: 0.88rem;
+        padding: 10px 14px;
+    }
+
+    .chat-footer {
+        padding: 10px 12px;
+    }
+
+    .modal-card {
+        max-width: 95vw;
+        max-height: 90vh;
     }
 }
+
